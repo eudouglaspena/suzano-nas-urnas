@@ -27,6 +27,13 @@
   --accent:#3fb39d; --accent-ink:#0f1513; --sel:#ffffff; color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
+html{overflow-y:scroll;scrollbar-width:auto;scrollbar-color:var(--accent) var(--soft)}
+html::-webkit-scrollbar{width:14px}
+html::-webkit-scrollbar-track{background:var(--soft);border-left:1px solid var(--line)}
+html::-webkit-scrollbar-thumb{background:var(--accent);border-radius:8px;border:3px solid var(--soft)}
+#pgbar{position:fixed;top:0;right:0;width:8px;height:100vh;background:var(--soft);z-index:50;pointer-events:none;display:none}
+#pgbar i{position:absolute;right:1px;width:6px;border-radius:4px;background:var(--accent)}
+@media (pointer:coarse){#pgbar{display:block}}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 56px}
 .wrap{max-width:1240px;margin:0 auto;display:grid;gap:24px}
@@ -252,7 +259,7 @@ const hasUrn = new Set(L.map(l => l.b));
 const BAI_REGS = {}; MICRO.forEach(m => (BAI_REGS[m.n] = BAI_REGS[m.n] || new Set()).add(m.r));
 const BAIS = Object.keys(BAI_REGS).sort((a,b)=>a.localeCompare(b,"pt"));
 
-let st = {zoom:true, view:"dis", cargo:"p1", dis:"", reg:"", bai:"", cand:null, limit:10};
+let st = {zoom:true, view:"reg", cargo:"p1", dis:"", reg:"", bai:"", cand:null, limit:10};
 const cargo = () => D.cargos.find(c => c.id === st.cargo);
 const isDep = () => st.cargo === "df" || st.cargo === "de";
 const VIEW = {dis:{un:"distrito", key:l=>DIS_OF[l.b]}, reg:{un:"região", key:l=>l.b}, bai:{un:"bairro", key:l=>l.mb}};
@@ -502,6 +509,9 @@ function render(){
   paintMap(c); drawSummary(); drawRank(); drawLocais(); drawSub();
 }
 render();
+(function(){const b=document.createElement("div");b.id="pgbar";b.setAttribute("aria-hidden","true");const t=document.createElement("i");b.appendChild(t);document.body.appendChild(b);
+function u(){const h=document.documentElement.scrollHeight,v=innerHeight;if(h<=v+2){b.style.display="none";return}b.style.display="";const th=Math.max(40,v*v/h),y=(v-th)*scrollY/(h-v);t.style.height=th+"px";t.style.top=y+"px"}
+addEventListener("scroll",u,{passive:true});addEventListener("resize",u);new ResizeObserver(u).observe(document.body);u()})();
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => paintMap(cargo()));
 new MutationObserver(() => paintMap(cargo())).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
 </script>
