@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
-/* Layout: barra de filtros (cargo, região, bairro) no topo; mapa da cidade como peça central com o ranking do recorte ao lado; locais de votação e busca de bairro abaixo */
+/* Layout: cargos e filtros no topo; ranking (caixa com rolagem) e depois o mapa; resumo, locais de votação e regiões abaixo */
 :root{
   --bg:#f2f4f1; --surface:#ffffff; --ink:#15211d; --muted:#5a6863; --line:#d5dcd8; --soft:#e7ece9;
   --accent:#0f6b5c; --accent-ink:#ffffff; --sel:#15211d;
@@ -74,6 +74,21 @@ select{min-width:190px}
 .crumb{font-size:.9rem;color:var(--muted);margin-left:auto}
 .crumb b{color:var(--ink)}
 
+/* compacto */
+.tabs .ts{display:none}
+.controls{padding:10px 12px;gap:10px}
+.tabs{display:grid;grid-template-columns:repeat(6,auto);justify-content:start;gap:5px}
+.tabs button{padding:5px 10px;font-size:.85rem}
+.filters{gap:8px 12px}
+@media (max-width:700px){
+  .tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tabs button{padding:6px 4px;font-size:.8rem;text-align:center}
+  .filters{display:grid;grid-template-columns:1fr 1fr}
+  .filters select{min-width:0;width:100%}
+  #limpar{grid-column:1 / -1;padding:6px}
+  .crumb{display:none}
+  .tabs .tl{display:none}.tabs .ts{display:inline}
+}
 /* resumo */
 .summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;background:var(--surface);border:1px solid var(--line);border-radius:8px}
 .summary div{padding:12px 14px;border-left:1px solid var(--line);min-width:0}
@@ -84,7 +99,10 @@ select{min-width:190px}
 @media (max-width:560px){.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.summary div{border-left:0;border-top:1px solid var(--line)}.summary div:first-child{border-top:0}}
 
 /* mapa + ranking */
-.main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:20px;align-items:start}
+.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:20px;align-items:start}
+.rankbox{max-height:292px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:2px;overscroll-behavior:contain}
+.rankbox::-webkit-scrollbar{width:10px}.rankbox::-webkit-scrollbar-thumb{background:var(--accent);border-radius:6px;border:2px solid var(--surface)}
+.rankbox{scrollbar-color:var(--accent) transparent}
 @media (max-width:900px){.main{grid-template-columns:1fr}}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:10px;min-width:0}
 .panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
@@ -110,7 +128,7 @@ svg#map{width:100%;height:auto;max-height:82vh;display:block}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 
 .rank{list-style:none;margin:0;padding:0;display:grid;gap:2px}
-.rank li button{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:1.6rem minmax(0,1fr) auto;gap:2px 10px;align-items:center;padding:7px 6px;border-radius:6px;cursor:pointer}
+.rank li button{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:1.6rem minmax(0,1fr) auto;gap:2px 10px;align-items:center;padding:6px 6px;border-radius:6px;cursor:pointer}
 .rank li button:hover{background:var(--soft)}
 .rank li button:focus-visible{outline:2px solid var(--accent)}
 .rank li button[aria-pressed="true"]{background:var(--soft);box-shadow:inset 0 0 0 1.5px var(--ink)}
@@ -183,9 +201,17 @@ footer p{margin:0}
     </div>
   </section>
 
-  <section class="summary" id="summary" aria-label="Resumo do recorte"></section>
-
   <section class="main">
+    <aside class="panel" aria-live="polite">
+      <div class="panel-head">
+        <h2 id="ranktitle">Resultado</h2>
+
+      </div>
+      <div class="field" id="buscawrap" hidden><label for="busca">Procurar candidato</label><input id="busca" type="search" placeholder="Nome, partido ou número" autocomplete="off"></div>
+      <div class="rankbox" tabindex="0" aria-label="Ranking de candidatos"><ol class="rank" id="rank"></ol></div>
+      <button type="button" class="ghost more" id="mais" hidden>Mostrar mais</button>
+      <div class="note" id="ranknote"></div>
+    </aside>
     <div class="panel">
       <div class="panel-head">
         <h2 id="maptitle">Mapa</h2>
@@ -200,17 +226,9 @@ footer p{margin:0}
       <div class="legend" id="legend"></div>
       <div class="note" id="mapnote"></div>
     </div>
-    <aside class="panel" aria-live="polite">
-      <div class="panel-head">
-        <h2 id="ranktitle">Resultado</h2>
-
-      </div>
-      <div class="field" id="buscawrap" hidden><label for="busca">Procurar candidato</label><input id="busca" type="search" placeholder="Nome, partido ou número" autocomplete="off"></div>
-      <ol class="rank" id="rank"></ol>
-      <button type="button" class="ghost more" id="mais" hidden>Mostrar mais</button>
-      <div class="note" id="ranknote"></div>
-    </aside>
   </section>
+
+  <section class="summary" id="summary" aria-label="Resumo do recorte"></section>
 
   <section style="display:grid;gap:12px">
     <div class="sechead"><h2 id="loctitle">Locais de votação</h2><span class="note">Clique no título de uma coluna para ordenar</span></div>
@@ -259,7 +277,7 @@ const hasUrn = new Set(L.map(l => l.b));
 const BAI_REGS = {}; MICRO.forEach(m => (BAI_REGS[m.n] = BAI_REGS[m.n] || new Set()).add(m.r));
 const BAIS = Object.keys(BAI_REGS).sort((a,b)=>a.localeCompare(b,"pt"));
 
-let st = {zoom:true, view:"reg", cargo:"p1", dis:"", reg:"", bai:"", cand:null, limit:10};
+let st = {zoom:true, view:"reg", cargo:"p1", dis:"", reg:"", bai:"", cand:null, limit:50};
 const cargo = () => D.cargos.find(c => c.id === st.cargo);
 const isDep = () => st.cargo === "df" || st.cargo === "de";
 const VIEW = {dis:{un:"distrito", key:l=>DIS_OF[l.b]}, reg:{un:"região", key:l=>l.b}, bai:{un:"bairro", key:l=>l.mb}};
@@ -286,8 +304,10 @@ function scopeName(){ return st.bai ? st.bai : st.reg ? "Região "+st.reg : st.d
 
 /* controles */
 const cargosEl = document.getElementById("cargos");
-cargosEl.innerHTML = D.cargos.map(c => `<button type="button" data-c="${c.id}">${esc(c.label)}</button>`).join("");
-cargosEl.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { st.cargo=b.dataset.c; st.cand=null; st.limit=10; document.getElementById("busca").value=""; render(); }));
+const TINY = {p1:"Pres. 1º T",p2:"Pres. 2º T",gov:"Governador",sen:"Senador",df:"Dep. federal",de:"Dep. estadual"};
+const SHORT = {p1:"Presidente 1º turno",p2:"Presidente 2º turno",gov:"Governador",sen:"Senador",df:"Dep. federal",de:"Dep. estadual"};
+cargosEl.innerHTML = D.cargos.map(c => `<button type="button" data-c="${c.id}" title="${esc(c.label)}"><span class="tl">${esc(SHORT[c.id]||c.label)}</span><span class="ts">${esc(TINY[c.id]||c.label)}</span></button>`).join("");
+cargosEl.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { st.cargo=b.dataset.c; st.cand=null; st.limit=50; document.getElementById("busca").value=""; render(); }));
 const fDis = document.getElementById("f-dis"), fReg = document.getElementById("f-reg"), fBai = document.getElementById("f-bai");
 fDis.innerHTML = `<option value="">Todos os distritos</option>` + Object.keys(DIST).map(d => `<option value="${d}">Distrito ${d}</option>`).join("");
 function fillSelects(){
@@ -307,7 +327,7 @@ fReg.addEventListener("change", () => { setReg(fReg.value); render(); });
 fBai.addEventListener("change", () => { setBai(fBai.value); render(); });
 document.getElementById("limpar").addEventListener("click", () => { st.dis=""; st.reg=""; st.bai=""; render(); });
 document.getElementById("clearcand").addEventListener("click", () => { st.cand=null; render(); });
-document.getElementById("mais").addEventListener("click", () => { st.limit += 20; drawRank(); });
+document.getElementById("mais").addEventListener("click", () => { st.limit += 50; drawRank(); });
 document.getElementById("busca").addEventListener("input", () => drawRank());
 document.querySelectorAll("#vista button").forEach(b => b.addEventListener("click", () => { st.view=b.dataset.v; render(); }));
 function clickReg(r){
@@ -349,7 +369,7 @@ let ZK = 1;
 function zoomTo(){
   let bx = null;
   const zb = document.getElementById("zoombtn"), hasF = !!(st.dis || st.reg || st.bai);
-  zb.hidden = !hasF; zb.textContent = st.zoom ? "Ver mapa inteiro" : "Aproximar no filtro";
+  zb.hidden = !hasF; zb.textContent = "Ver mapa inteiro";
   if (hasF && st.zoom){
     const els = st.view==="bai" ? MP.filter(o=>!o.p.classList.contains("dim")).map(o=>o.p) : REGS.filter(r=>!PATHS[r].classList.contains("dim")).map(r=>PATHS[r]);
     els.forEach(e => { const b = e.getBBox(); if (!b.width) return; bx = bx ? {x1:Math.min(bx.x1,b.x),y1:Math.min(bx.y1,b.y),x2:Math.max(bx.x2,b.x+b.width),y2:Math.max(bx.y2,b.y+b.height)} : {x1:b.x,y1:b.y,x2:b.x+b.width,y2:b.y+b.height}; });
@@ -493,12 +513,13 @@ document.getElementById("achar").addEventListener("input", drawSub);
 
 /* tudo */
 let lastScope = "";
-document.getElementById("zoombtn").addEventListener("click", () => { st.zoom = !st.zoom; zoomTo(); });
+document.getElementById("zoombtn").addEventListener("click", () => { st.dis=""; st.reg=""; st.bai=""; render(); });
 function render(){
-  const sk = st.dis+"|"+st.reg+"|"+st.bai; if (sk !== lastScope){ st.zoom = true; lastScope = sk; }
+  const sk = st.dis+"|"+st.reg+"|"+st.bai+"|"+st.cargo; if (sk !== lastScope){ st.zoom = true; lastScope = sk; const rb=document.querySelector(".rankbox"); if (rb) rb.scrollTop=0; }
   const c = cargo();
   cargosEl.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.c===st.cargo));
   fillSelects();
+  document.getElementById("limpar").hidden = !(st.dis || st.reg || st.bai);
   document.getElementById("buscawrap").hidden = !isDep();
   document.getElementById("clearcand").hidden = st.cand==null;
   const info = st.cand!=null ? candInfo(c, st.cand) : null, un = VIEW[st.view].un;
