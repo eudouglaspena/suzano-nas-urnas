@@ -153,6 +153,7 @@ thead th{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:va
 th button{all:unset;cursor:pointer}
 th[aria-sort="descending"] button::after{content:" ▼"} th[aria-sort="ascending"] button::after{content:" ▲"}
 tbody tr:hover{background:var(--soft)}
+.wn{display:inline-flex;gap:6px;align-items:center}
 .sechead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
 
 /* bairros */
@@ -231,7 +232,7 @@ footer p{margin:0}
   <section class="summary" id="summary" aria-label="Resumo do recorte"></section>
 
   <section style="display:grid;gap:12px">
-    <div class="sechead"><h2 id="loctitle">Locais de votação</h2><span class="note">Clique no título de uma coluna para ordenar</span></div>
+    <div class="sechead"><h2 id="loctitle">Locais de votação</h2><span class="note">Resultado do cargo escolhido em cada escola. Clique no título de uma coluna para ordenar</span></div>
     <div class="tbl tbl-scroll" tabindex="0" aria-label="Lista de locais de votação"><table id="tl"></table></div>
   </section>
 
@@ -477,20 +478,28 @@ function drawSummary(){
 /* locais */
 let lsort = ["nm",1];
 function drawLocais(){
-  const rows = scopeIdx().map(i => L[i]);
+  const c = cargo(), info = st.cand!=null ? candInfo(c, st.cand) : null;
+  const rows = scopeIdx().map(i => { const A = agg(c,[i]), R = ranked(c,A); return {l:L[i], A, R, cv: info ? candVotes(c,A,st.cand) : 0}; });
+  const nmc = r => r ? `<span class="wn">${chip(r.p, r.p)} ${esc(r.n)}</span>` : "";
   const cols = [
-    {k:"nm",h:"Local de votação",v:r=>r.nm},
-    {k:"mb",h:"Bairro",v:r=>r.mb},
-    {k:"b",h:"Região",v:r=>r.b},
-    {k:"d",h:"Distrito",v:r=>DIS_OF[r.b]||""},
+    {k:"nm",h:"Local de votação",v:r=>r.l.nm},
+    {k:"w1",h:"1º lugar",v:r=>r.R[0]?r.R[0].n:"",html:r=>nmc(r.R[0])},
+    {k:"p1",h:"%",num:1,v:r=>r.R[0]&&r.A.valid?r.R[0].votes/r.A.valid:0,html:r=>r.R[0]?pct(r.R[0].votes,r.A.valid)+"%":""},
+    {k:"w2",h:"2º lugar",v:r=>r.R[1]?r.R[1].n:"",html:r=>nmc(r.R[1])},
+    {k:"p2",h:"%",num:1,v:r=>r.R[1]&&r.A.valid?r.R[1].votes/r.A.valid:0,html:r=>r.R[1]?pct(r.R[1].votes,r.A.valid)+"%":""},
   ];
-  const col = cols.find(c=>c.k===lsort[0]);
-  rows.sort((a,b)=>{const x=col.v(a),y=col.v(b);return x.localeCompare(y,"pt")*lsort[1]});
+  if (info) cols.push({k:"cv",h:info.n,num:1,v:r=>r.cv,html:r=>`${fmt(r.cv)} <span class="note">(${pct(r.cv,r.A.valid)}%)</span>`});
+  cols.push({k:"va",h:"Votos válidos",num:1,v:r=>r.A.valid,html:r=>fmt(r.A.valid)},
+    {k:"mb",h:"Bairro",v:r=>r.l.mb},
+    {k:"b",h:"Região",v:r=>r.l.b},
+    {k:"d",h:"Distrito",v:r=>DIS_OF[r.l.b]||""});
+  let col = cols.find(x=>x.k===lsort[0]); if (!col){ lsort=["nm",1]; col=cols[0]; }
+  rows.sort((a,b)=>{const x=col.v(a),y=col.v(b);return (col.num ? x-y : x.localeCompare(y,"pt"))*lsort[1]});
   const t = document.getElementById("tl");
-  t.innerHTML = `<thead><tr>${cols.map(c=>`<th class="l" aria-sort="${c.k===lsort[0]?(lsort[1]>0?"ascending":"descending"):"none"}"><button type="button" data-k="${c.k}">${c.h}</button></th>`).join("")}</tr></thead>
-    <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td class="l">${esc(c.v(r))}</td>`).join("")}</tr>`).join("") || `<tr><td class="l" colspan="${cols.length}">Nenhum local de votação neste recorte.</td></tr>`}</tbody>`;
-  t.querySelectorAll("th button").forEach(b=>b.addEventListener("click",()=>{ lsort = [b.dataset.k, b.dataset.k===lsort[0] ? -lsort[1] : 1]; drawLocais(); }));
-  document.getElementById("loctitle").textContent = `Locais de votação · ${scopeName()} (${rows.length})`;
+  t.innerHTML = `<thead><tr>${cols.map(x=>`<th class="${x.num?"":"l"}" aria-sort="${x.k===lsort[0]?(lsort[1]>0?"ascending":"descending"):"none"}"><button type="button" data-k="${x.k}">${esc(x.h)}</button></th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${cols.map(x=>`<td class="${x.num?"":"l"}">${x.html?x.html(r):esc(x.v(r))}</td>`).join("")}</tr>`).join("") || `<tr><td class="l" colspan="${cols.length}">Nenhum local de votação neste recorte.</td></tr>`}</tbody>`;
+  t.querySelectorAll("th button").forEach(b=>b.addEventListener("click",()=>{ const k=b.dataset.k, nc=cols.find(x=>x.k===k); lsort = [k, k===lsort[0] ? -lsort[1] : (nc.num ? -1 : 1)]; drawLocais(); }));
+  document.getElementById("loctitle").textContent = `Locais de votação · ${c.label} · ${scopeName()} (${rows.length})`;
 }
 
 /* nomes do dia a dia */
